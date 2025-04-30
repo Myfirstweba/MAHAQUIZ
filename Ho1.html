@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Horizontal Sidebar Quiz</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background-color: #f4f4f4;
+    }
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: linear-gradient(to right, #00c6ff, #0072ff);
+      color: white;
+    }
+    .quiz-container {
+      display: none;
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    #questionNavBar {
+      overflow-x: auto;
+      white-space: nowrap;
+      background-color: #e9ecef;
+      padding: 10px;
+      text-align: center;
+    }
+    .question-number {
+      display: inline-block;
+      margin: 5px;
+      padding: 10px 15px;
+      border-radius: 50%;
+      background-color: #6c757d;
+      color: white;
+      cursor: pointer;
+      min-width: 40px;
+      text-align: center;
+    }
+    .question-number.attempted {
+      background-color: #007bff;
+    }
+    .question-number.active-question {
+      background-color: #17a2b8;
+    }
+    .question {
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+    .options button {
+      display: block;
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    .options button.selected {
+      background-color: #cce5ff;
+      border-color: #007bff;
+    }
+    .nav-buttons {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .nav-buttons button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    #timer {
+      font-weight: bold;
+      text-align: right;
+      margin-bottom: 10px;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #answerReview {
+      margin-top: 15px;
+      background-color: #f0f0f0;
+      padding: 10px;
+      display: none;
+    }
+    .explanation {
+      display: none;
+      margin-top: 5px;
+      font-style: italic;
+      background-color: #e2e3e5;
+      padding: 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Welcome to the Quiz</h1>
+    <button onclick="startQuiz()">Start Quiz</button>
+  </div>
+
+  <div id="questionNavBar"></div>
+
+  <div class="quiz-container">
+    <div id="timer">Time: 00:00:00</div>
+    <div id="question" class="question"></div>
+    <div class="options">
+      <button onclick="selectAnswer(0)"></button>
+      <button onclick="selectAnswer(1)"></button>
+      <button onclick="selectAnswer(2)"></button>
+      <button onclick="selectAnswer(3)"></button>
+    </div>
+    <div class="nav-buttons">
+      <button onclick="prevQuestion()">Previous</button>
+      <button onclick="nextQuestion()">Next</button>
+    </div>
+    <button id="submitBtn" onclick="submitQuiz()">Submit Quiz</button>
+    <button id="restartBtn" onclick="restartQuiz()" style="display: none;">Restart</button>
+    <div id="result"></div>
+    <div id="answerReview"></div>
+  </div>
+
+  <script>
+    let currentQuestion = 0;
+    let selectedAnswers = [];
+    let timerInterval;
+    let timeElapsed = 0;
+
+    const questions = 
+[
+  {
+    "question": "इतिहास का अध्ययन क्यों आवश्यक होता है?",
+    "options": ["यह हमें अतीत के बारे में जानकारी देता है", "यह समाज के विकास को समझने में मदद करता है", "यह हमें भविष्य की योजनाओं को समझने में सहायता करता है", "उपरोक्त सभी"],
+    "answer": 3,
+    "explanation": "इतिहास का अध्ययन हमारे अतीत को समझने और समाज की सामाजिक, राजनीतिक, और सांस्कृतिक संरचनाओं को जानने में मदद करता है, जिससे हम भविष्य में बेहतर निर्णय ले सकते हैं।"
+  },
+  {
+    "question": "इतिहास हमें हमारे अतीत के बारे में क्या सिखाता है?",
+    "options": ["समाज की सामाजिक संरचना", "संस्कृतियों और परंपराओं का विकास", "राजनीतिक घटनाएँ और उनका प्रभाव", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास हमें हमारे अतीत से समाज की संरचना, संस्कृति, परंपराओं और राजनीतिक घटनाओं के बारे में सिखाता है, जो हमारे वर्तमान और भविष्य को प्रभावित करते हैं।"
+  },
+  {
+    "question": "इतिहास और संस्कृति में क्या संबंध है?",
+    "options": ["इतिहास संस्कृति के विकास को दर्शाता है", "संस्कृति इतिहास के बिना अधूरी होती है", "इतिहास और संस्कृति एक-दूसरे को प्रभावित करते हैं", "उपरोक्त सभी"],
+    "answer": 3,
+    "explanation": "इतिहास और संस्कृति एक-दूसरे को प्रभावित करते हैं; इतिहास के माध्यम से हम संस्कृति के विकास और बदलाव को समझ सकते हैं।"
+  },
+  {
+    "question": "इतिहास किस प्रकार से नागरिक चेतना को बढ़ाता है?",
+    "options": ["इतिहास नागरिकों को उनके अधिकारों के बारे में जागरूक करता है", "इतिहास हमें संघर्षों और उनके परिणामों से सिखाता है", "इतिहास राष्ट्रीय एकता को बढ़ावा देता है", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास हमें संघर्षों, अधिकारों, और उनके परिणामों के बारे में जागरूक करता है, जिससे नागरिकों में जिम्मेदारी और राष्ट्रीय एकता की भावना उत्पन्न होती है।"
+  },
+  {
+    "question": "इतिहास पढ़ने से राष्ट्रभक्ति की भावना कैसे उत्पन्न होती है?",
+    "options": ["इतिहास से हम अपने देश के महान कृत्यों को जान सकते हैं", "इतिहास के अध्ययन से हमें अपने राष्ट्रीय नायकों की प्रेरणा मिलती है", "इतिहास हमें अपने कर्तव्यों और जिम्मेदारियों को समझाता है", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास के माध्यम से हम अपने देश के महान कृत्यों, राष्ट्रीय नायकों की प्रेरणा, और अपने कर्तव्यों को समझकर राष्ट्रभक्ति की भावना विकसित कर सकते हैं।"
+  },
+  {
+    "question": "इतिहास के अध्ययन से हम किन गलतियों से बच सकते हैं?",
+    "options": ["पूर्ववर्ती घटनाओं से सीखने की प्रक्रिया", "समान गलतियों को पुनः दोहराने से बचना", "समाज की आवश्यकताओं और विकास को समझना", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास हमें अतीत से सिखने की प्रक्रिया प्रदान करता है, जिससे हम भविष्य में समान गलतियाँ नहीं दोहरा सकते और समाज के विकास में योगदान दे सकते हैं।"
+  },
+  {
+    "question": "इतिहास के माध्यम से हम समाज में कौन-कौन से बदलाव देख सकते हैं?",
+    "options": ["सामाजिक न्याय में सुधार", "राजनीतिक व्यवस्था में बदलाव", "आर्थिक सुधार", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास हमें यह समझने में मदद करता है कि समाज में सामाजिक न्याय, राजनीतिक व्यवस्था और आर्थिक सुधार कैसे आए और उनका समाज पर क्या प्रभाव पड़ा।"
+  },
+  {
+    "question": "इतिहास का ज्ञान युवाओं के लिए कैसे लाभकारी है?",
+    "options": ["युवाओं को प्रेरणा मिलती है", "उन्हें अपने कर्तव्यों और जिम्मेदारियों का अहसास होता है", "यह उन्हें समाज में सकारात्मक बदलाव लाने के लिए प्रेरित करता है", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास का ज्ञान युवाओं को प्रेरित करता है, उनके कर्तव्यों और जिम्मेदारियों का अहसास कराता है, और उन्हें समाज में बदलाव लाने के लिए प्रेरित करता है।"
+  },
+  {
+    "question": "इतिहास को पढ़ने से भविष्य की योजना बनाने में कैसे सहायता मिलती है?",
+    "options": ["इतिहास हमें भविष्य के लिए सही निर्णय लेने में मदद करता है", "हम अतीत की घटनाओं से प्रेरणा लेकर सुधार कर सकते हैं", "इतिहास के अध्ययन से हमें सामूहिक सोच विकसित होती है", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास हमें अतीत की घटनाओं से सीखने और भविष्य में सुधार करने के लिए मार्गदर्शन देता है, जिससे हम सही निर्णय ले सकते हैं।"
+  },
+  {
+    "question": "इतिहास का अध्ययन हमारे नैतिक मूल्यों को किस प्रकार प्रभावित करता है?",
+    "options": ["इतिहास हमें अच्छाई और बुराई के बारे में सिखाता है", "यह हमें सत्य और न्याय की महत्ता समझाता है", "यह समाज में अच्छाई को बढ़ावा देता है", "सभी विकल्प"],
+    "answer": 3,
+    "explanation": "इतिहास हमें अच्छाई और बुराई, सत्य और न्याय के बारे में सिखाता है, जो हमारे नैतिक मूल्यों को मजबूत करता है और समाज में अच्छाई को बढ़ावा देता है।"
+  }
+];
+
+    function startQuiz() {
+      document.querySelector('.header').style.display = 'none';
+      document.querySelector('.quiz-container').style.display = 'block';
+      createNavBar();
+      showQuestion(currentQuestion);
+      startTimer();
+    }
+
+    function formatTime(seconds) {
+      const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(seconds % 60).padStart(2, '0');
+      return `${hrs}:${mins}:${secs}`;
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        timeElapsed++;
+        document.getElementById('timer').textContent = `Time: ${formatTime(timeElapsed)}`;
+      }, 1000);
+    }
+
+    function showQuestion(index) {
+      const q = questions[index];
+      document.getElementById('question').textContent = q.question;
+      const options = document.querySelectorAll('.options button');
+      options.forEach((btn, i) => {
+        btn.textContent = q.options[i];
+        btn.classList.remove('selected');
+        if (selectedAnswers[index] === i) {
+          btn.classList.add('selected');
+        }
+      });
+      updateNavBar();
+      document.getElementById('answerReview').style.display = 'none';
+      scrollToQuestion(index);
+    }
+
+    function selectAnswer(i) {
+      selectedAnswers[currentQuestion] = i;
+      updateNavBar();
+      showQuestion(currentQuestion);
+    }
+
+    function nextQuestion() {
+      if (currentQuestion < questions.length - 1) {
+        currentQuestion++;
+        showQuestion(currentQuestion);
+      }
+    }
+
+    function prevQuestion() {
+      if (currentQuestion > 0) {
+        currentQuestion--;
+        showQuestion(currentQuestion);
+      }
+    }
+
+    function submitQuiz() {
+      clearInterval(timerInterval);
+      let score = 0;
+      let review = '';
+      questions.forEach((q, i) => {
+        const isCorrect = selectedAnswers[i] === q.answer;
+        if (isCorrect) score++;
+        const explanationId = `explanation-${i}`;
+        review += `
+          <div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa;">
+            <strong>Q${i + 1}:</strong> ${q.question}<br>
+            <strong>Your Answer:</strong> ${q.options[selectedAnswers[i]] ?? 'Not Answered'}<br>
+            <strong>Correct Answer:</strong> ${q.options[q.answer]}<br>
+            <button onclick="toggleExplanation('${explanationId}')">Show Explanation</button>
+            <div id="${explanationId}" class="explanation">${q.explanation}</div>
+          </div>
+        `;
+      });
+      document.getElementById('result').textContent = `You scored ${score} out of ${questions.length} in ${formatTime(timeElapsed)}.`;
+      document.getElementById('answerReview').innerHTML = review;
+      document.getElementById('answerReview').style.display = 'block';
+      document.getElementById('submitBtn').style.display = 'none';
+      document.getElementById('restartBtn').style.display = 'inline-block';
+    }
+
+    function toggleExplanation(id) {
+      const elem = document.getElementById(id);
+      elem.style.display = (elem.style.display === 'none' || elem.style.display === '') ? 'block' : 'none';
+    }
+
+    function restartQuiz() {
+      currentQuestion = 0;
+      selectedAnswers = [];
+      timeElapsed = 0;
+      document.getElementById('timer').textContent = `Time: ${formatTime(timeElapsed)}`;
+      document.getElementById('result').textContent = '';
+      document.getElementById('answerReview').style.display = 'none';
+      document.getElementById('submitBtn').style.display = 'inline-block';
+      document.getElementById('restartBtn').style.display = 'none';
+      showQuestion(currentQuestion);
+      startTimer();
+    }
+
+    function createNavBar() {
+      const navBar = document.getElementById('questionNavBar');
+      navBar.innerHTML = '';
+      questions.forEach((_, i) => {
+        const div = document.createElement('div');
+        div.className = 'question-number';
+        div.textContent = i + 1;
+        div.id = `nav-q-${i}`;
+        div.onclick = () => {
+          currentQuestion = i;
+          showQuestion(currentQuestion);
+        };
+        navBar.appendChild(div);
+      });
+    }
+
+    function updateNavBar() {
+      const navItems = document.querySelectorAll('.question-number');
+      navItems.forEach((el, i) => {
+        el.classList.remove('active-question', 'attempted');
+        if (i === currentQuestion) el.classList.add('active-question');
+        if (selectedAnswers[i] !== undefined) el.classList.add('attempted');
+      });
+    }
+
+    function scrollToQuestion(index) {
+      const target = document.getElementById(`nav-q-${index}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  </script>
+
+</body>
+</html>
